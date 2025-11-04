@@ -6,7 +6,6 @@ import { useRouter } from "next/navigation";
 import {
   Box,
   Paper,
-  Grid,
   Typography,
   Card,
   CardContent,
@@ -17,6 +16,7 @@ import {
   Button,
   Divider,
 } from "@mui/material";
+import Grid from "@mui/material/GridLegacy";
 import { motion } from "framer-motion";
 
 interface ClassData {

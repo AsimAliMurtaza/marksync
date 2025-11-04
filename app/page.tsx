@@ -9,8 +9,8 @@ import {
   Stack,
   useTheme,
   Paper,
-  Grid,
 } from "@mui/material";
+import Grid from "@mui/material/GridLegacy";
 import SchoolIcon from "@mui/icons-material/School";
 import CheckCircleOutlineIcon from "@mui/icons-material/CheckCircleOutline";
 import AccessTimeIcon from "@mui/icons-material/AccessTime";

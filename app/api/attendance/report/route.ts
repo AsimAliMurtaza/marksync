@@ -2,7 +2,6 @@ import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/libs/mongodb";
 import Attendance from "@/models/Attendance";
 import Class from "@/models/Class";
-import User from "@/models/User";
 
 export async function GET(req: NextRequest) {
   try {
@@ -73,9 +72,9 @@ export async function GET(req: NextRequest) {
       success: true,
       data: { report, dates },
     });
-  } catch (err: any) {
+  } catch (err) {
     console.error("Error generating report:", err);
-    return NextResponse.json({ success: false, error: err.message });
+    return NextResponse.json({ success: false, error: (err as Error).message });
   }
 }
  

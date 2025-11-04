@@ -130,10 +130,10 @@ export async function POST(req: NextRequest) {
       message: "Attendance marked successfully!",
       data: attendance,
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error marking attendance:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }

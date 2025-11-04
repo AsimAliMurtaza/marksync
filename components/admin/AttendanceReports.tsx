@@ -11,14 +11,23 @@ import {
   Button,
   CircularProgress,
 } from "@mui/material";
+import type { SelectChangeEvent } from "@mui/material/Select";
 import * as XLSX from "xlsx";
+import ClassData from "@/types/ClassData";
+
+interface SelectedClass {
+  _id: string;
+  name: string;
+  code: string;
+  location: { latitude: number; longitude: number };
+}
+
 
 export default function AttendanceReports() {
-  const [classes, setClasses] = useState<any[]>([]);
+  const [classes, setClasses] = useState<ClassData[]>([]);
   const [selectedClass, setSelectedClass] = useState<string>("");
-  const [selectedClassObj, setSelectedClassObj] = useState<any>(null);
+  const [selectedClassObj, setSelectedClassObj] = useState<SelectedClass | null>(null);
   const [loading, setLoading] = useState(false);
-
   useEffect(() => {
     const fetchClasses = async () => {
       const res = await fetch("/api/classes");
@@ -28,11 +37,11 @@ export default function AttendanceReports() {
     fetchClasses();
   }, []);
 
-  const handleClassChange = (event: any) => {
-    const id = event.target.value;
+  const handleClassChange = (event: SelectChangeEvent<string>) => {
+    const id = event.target.value as string;
     setSelectedClass(id);
     const found = classes.find((cls) => cls._id === id);
-    setSelectedClassObj(found || null);
+    setSelectedClassObj((found as SelectedClass) || null);
   };
 
   const handleExport = async () => {

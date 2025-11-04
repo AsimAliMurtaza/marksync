@@ -20,7 +20,6 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import LocationOnIcon from "@mui/icons-material/LocationOn";
 import ScheduleIcon from "@mui/icons-material/Schedule";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle";
 import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
 import CancelIcon from "@mui/icons-material/Cancel";
 
@@ -44,7 +43,13 @@ interface ClassData {
 
 interface ApiResponse {
   success: boolean;
-  data: ClassData;
+  data?: ClassData;
+  error?: string;
+}
+
+interface AttendanceStatusResponse {
+  success: boolean;
+  data?: { isPresent: boolean };
   error?: string;
 }
 
@@ -56,18 +61,14 @@ interface SnackbarState {
 
 const formatTime = (time: string): string => {
   if (!time) return "TBA";
-  try {
-    const [hours, minutes] = time.split(":");
-    const hour = parseInt(hours, 10);
-    const ampm = hour >= 12 ? "PM" : "AM";
-    const formattedHour = hour % 12 || 12;
-    return `${formattedHour}:${minutes || "00"} ${ampm}`;
-  } catch {
-    return time;
-  }
+  const [hours, minutes] = time.split(":");
+  const hour = parseInt(hours, 10);
+  const ampm = hour >= 12 ? "PM" : "AM";
+  const formattedHour = hour % 12 || 12;
+  return `${formattedHour}:${minutes || "00"} ${ampm}`;
 };
 
-function getDeviceInfo() {
+function getDeviceInfo(): string {
   const info = [
     navigator.userAgent,
     navigator.language,
@@ -90,15 +91,16 @@ const fetchClassDetails = async (id: string): Promise<ClassData> => {
   const response = await fetch(`/api/classes/${id}`);
   if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
   const result: ApiResponse = await response.json();
-  if (!result.success || !result.data) throw new Error(result.error);
+  if (!result.success || !result.data)
+    throw new Error(result.error ?? "Unknown error");
   return result.data;
 };
 
-export default function ClassDetailPage() {
+export default function ClassDetailPage(): JSX.Element {
   const [classData, setClassData] = useState<ClassData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [markingAttendance, setMarkingAttendance] = useState<boolean>(false);
-  const [isPresent, setIsPresent] = useState<boolean | null>(null); // ✅ null = loading
+  const [isPresent, setIsPresent] = useState<boolean | null>(null);
   const [snackbar, setSnackbar] = useState<SnackbarState>({
     open: false,
     message: "",
@@ -106,15 +108,16 @@ export default function ClassDetailPage() {
   });
 
   const router = useRouter();
-  const { id } = useParams();
-  const classId = id as string;
+  const params = useParams();
+  const classId = params.id as string;
 
   useEffect(() => {
-    const loadClassData = async () => {
+    const loadClassData = async (): Promise<void> => {
       try {
         const data = await fetchClassDetails(classId);
         setClassData(data);
-      } catch {
+      } catch (error) {
+        console.error(error);
         setSnackbar({
           open: true,
           message: "Failed to load class details. Please try again.",
@@ -124,24 +127,20 @@ export default function ClassDetailPage() {
         setLoading(false);
       }
     };
-    if (classId) loadClassData();
+    if (classId) void loadClassData();
   }, [classId]);
 
-  // ✅ Check attendance status (on mount)
   useEffect(() => {
-    const checkAttendanceStatus = async () => {
+    const checkAttendanceStatus = async (): Promise<void> => {
       try {
-        setIsPresent(null); // loading state
+        setIsPresent(null);
         const response = await fetch(
           `/api/attendance/status?classId=${classId}`
         );
-        const result = await response.json();
-        if (result.success) {
-          setIsPresent(result.data.isPresent);
-        } else {
-          setIsPresent(false);
-        }
-      } catch {
+        const result: AttendanceStatusResponse = await response.json();
+        setIsPresent(result.success ? result.data?.isPresent ?? false : false);
+      } catch (error) {
+        console.error(error);
         setIsPresent(false);
         setSnackbar({
           open: true,
@@ -150,12 +149,14 @@ export default function ClassDetailPage() {
         });
       }
     };
-    if (classId) checkAttendanceStatus();
+    if (classId) void checkAttendanceStatus();
   }, [classId]);
 
-  const handleBackToDashboard = () => router.push("/classes");
+  const handleBackToDashboard = (): void => {
+    router.push("/classes");
+  };
 
-  const handleMarkPresent = async () => {
+  const handleMarkPresent = async (): Promise<void> => {
     if (!classData) return;
 
     if (!navigator.geolocation) {
@@ -170,7 +171,7 @@ export default function ClassDetailPage() {
     setMarkingAttendance(true);
 
     navigator.geolocation.getCurrentPosition(
-      async (position) => {
+      async (position: GeolocationPosition) => {
         try {
           const { latitude, longitude } = position.coords;
 
@@ -185,23 +186,25 @@ export default function ClassDetailPage() {
             }),
           });
 
-          const result = await response.json();
+          const result: { success: boolean; message?: string; error?: string } =
+            await response.json();
 
           if (result.success) {
             setSnackbar({
               open: true,
-              message: result.message || "Attendance marked successfully!",
+              message: result.message ?? "Attendance marked successfully!",
               severity: "success",
             });
             setIsPresent(true);
           } else {
             setSnackbar({
               open: true,
-              message: result.error || "Failed to mark attendance",
+              message: result.error ?? "Failed to mark attendance",
               severity: "error",
             });
           }
-        } catch {
+        } catch (error) {
+          console.error(error);
           setSnackbar({
             open: true,
             message: "Error marking attendance",
@@ -211,7 +214,8 @@ export default function ClassDetailPage() {
           setMarkingAttendance(false);
         }
       },
-      () => {
+      (error: GeolocationPositionError) => {
+        console.error(error);
         setSnackbar({
           open: true,
           message: "Unable to get location. Check permissions.",
@@ -224,14 +228,14 @@ export default function ClassDetailPage() {
   };
 
   const handleCloseSnackbar = (
-    event?: React.SyntheticEvent | Event,
+    _event?: React.SyntheticEvent | Event,
     reason?: string
-  ) => {
+  ): void => {
     if (reason === "clickaway") return;
     setSnackbar((prev) => ({ ...prev, open: false }));
   };
 
-  const getStatusChip = (status: ClassData["status"]) => {
+  const getStatusChip = (status?: ClassData["status"]): JSX.Element | null => {
     if (!status) return null;
     let color: "success" | "error" | "warning" | "default" = "default";
     switch (status) {
@@ -279,22 +283,15 @@ export default function ClassDetailPage() {
     );
 
   return (
-    <Box
-      sx={{
-        flexGrow: 1,
-        padding: 3,
-        backgroundColor: "#f5f7fa",
-        minHeight: "100vh",
-      }}
-    >
+    <Box sx={{ flexGrow: 1, p: 3, bgcolor: "#f5f7fa", minHeight: "100vh" }}>
       <Paper
         elevation={2}
         sx={{
-          padding: 8,
+          p: 8,
           borderRadius: 1,
           maxWidth: 700,
-          margin: "auto",
-          background: "#fffff",
+          m: "auto",
+          bgcolor: "#ffffff",
         }}
       >
         <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
@@ -323,9 +320,7 @@ export default function ClassDetailPage() {
           <Box sx={{ mb: 1, display: "flex", alignItems: "center" }}>
             <LocationOnIcon sx={{ mr: 1, color: "text.secondary" }} />
             <Typography color="text.secondary">
-              {/* Lat: {classData.location.latitude.toFixed(6)} | Lon:{" "} */}
-              {/* {classData.location.longitude.toFixed(6)} | Radius:{" "} */}
-              Mark Attendance within {classData.allowedRadius || 30}m of
+              Mark Attendance within {classData.allowedRadius ?? 30}m of
               classroom | Room: {classData.schedule.room || "TBA"}
             </Typography>
           </Box>
@@ -333,8 +328,6 @@ export default function ClassDetailPage() {
 
         <Box sx={{ mt: 2 }}>
           {getStatusChip(classData.status)}
-
-          {/* ✅ Attendance Status */}
           <Fade in={isPresent !== null}>
             <Box sx={{ mt: 2 }}>
               {isPresent === null ? (
@@ -366,7 +359,7 @@ export default function ClassDetailPage() {
             color={isPresent ? "success" : "primary"}
             size="large"
             onClick={handleMarkPresent}
-            disabled={markingAttendance || isPresent}
+            disabled={markingAttendance || !!isPresent}
             sx={{ px: 5, py: 1.5, fontSize: "1rem", fontWeight: 600 }}
           >
             {isPresent

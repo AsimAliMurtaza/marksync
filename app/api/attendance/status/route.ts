@@ -58,10 +58,10 @@ export async function GET(req: NextRequest) {
         record: attendance || null,
       },
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error checking attendance:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }

@@ -1,8 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import dbConnect from "@/libs/mongodb";
 import Class from "@/models/Class";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/app/api/auth/[...nextauth]/options";
 
 interface Params {
   params: { id: string };
@@ -32,10 +30,10 @@ export async function GET(request: NextRequest, { params }: Params) {
     console.log("Class fetched:", classData.name);
 
     return NextResponse.json({ success: true, data: classData });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching class:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 400 }
     );
   }
@@ -56,10 +54,10 @@ export async function PUT(req: NextRequest, { params }: Params) {
       );
 
     return NextResponse.json({ success: true, data: updated });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error updating class:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }
@@ -82,10 +80,10 @@ export async function DELETE(req: NextRequest, { params }: Params) {
       success: true,
       message: "Class deleted successfully",
     });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error deleting class:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }

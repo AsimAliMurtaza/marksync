@@ -7,10 +7,10 @@ export async function GET() {
     await dbConnect();
     const classes = await Class.find().sort({ createdAt: -1 });
     return NextResponse.json({ success: true, data: classes });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error fetching classes:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }
@@ -54,10 +54,10 @@ export async function POST(req: NextRequest) {
     });
 
     return NextResponse.json({ success: true, data: newClass });
-  } catch (error: any) {
+  } catch (error) {
     console.error("Error creating class:", error);
     return NextResponse.json(
-      { success: false, error: error.message },
+      { success: false, error: (error as Error).message },
       { status: 500 }
     );
   }

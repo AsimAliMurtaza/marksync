@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { Box } from "@mui/material";
-import Sidebar, { drawerWidth, collapsedWidth } from "@/components/Sidebar";
+import Sidebar from "@/components/Sidebar";
 
 export default function MarkSyncLayout({
   children,
@@ -10,6 +10,7 @@ export default function MarkSyncLayout({
   children: React.ReactNode;
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  console.log("Sidebar open state:", sidebarOpen);
 
   return (
     <Box sx={{ display: "flex", minHeight: "100vh" }}>

@@ -17,43 +17,42 @@ import {
   DialogActions,
   TextField,
   MenuItem,
-  Grid,
 } from "@mui/material";
+import Grid from "@mui/material/GridLegacy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import EditIcon from "@mui/icons-material/Edit";
+import ClassData from "@/types/ClassData";
 
-interface ClassData {
+type ClassForm = {
   _id?: string;
   name: string;
   code: string;
-  location: { latitude: number; longitude: number };
   allowedRadius: number;
+  location: {
+    latitude: number;
+    longitude: number;
+  };
   schedule: {
     dayOfWeek: string;
     startTime: string;
     endTime: string;
     room: string;
   };
-}
+};
 
 export default function ClassManagement() {
   const [classes, setClasses] = useState<ClassData[]>([]);
   const [loading, setLoading] = useState(true);
   const [openDialog, setOpenDialog] = useState(false);
   const [editMode, setEditMode] = useState(false);
-  const [form, setForm] = useState<ClassData>({
+
+  const [form, setForm] = useState<ClassForm>({
     name: "",
     code: "",
-    location: { latitude: 0, longitude: 0 },
     allowedRadius: 30,
-    schedule: {
-      dayOfWeek: "",
-      startTime: "",
-      endTime: "",
-      room: "",
-    },
+    location: { latitude: 0, longitude: 0 },
+    schedule: { dayOfWeek: "", startTime: "", endTime: "", room: "" },
   });
-
   // Fetch all classes
   const fetchClasses = async () => {
     const res = await fetch("/api/classes");
@@ -66,21 +65,31 @@ export default function ClassManagement() {
     fetchClasses();
   }, []);
 
-  const handleChange = (field: string, value: any) => {
+  const handleChange = (field: string, value: string | number): void => {
     if (field.startsWith("location.")) {
-      const subField = field.split(".")[1];
-      setForm({
-        ...form,
-        location: { ...form.location, [subField]: parseFloat(value) },
-      });
+      const subField = field.split(".")[1] as keyof ClassForm["location"];
+      setForm((prev) => ({
+        ...prev,
+        location: {
+          ...prev.location,
+          [subField]: Number(value),
+        },
+      }));
     } else if (field.startsWith("schedule.")) {
-      const subField = field.split(".")[1];
-      setForm({
-        ...form,
-        schedule: { ...form.schedule, [subField]: value },
-      });
+      const subField = field.split(".")[1] as keyof ClassForm["schedule"];
+      setForm((prev) => ({
+        ...prev,
+        schedule: {
+          ...prev.schedule,
+          [subField]: value as string,
+        },
+      }));
     } else {
-      setForm({ ...form, [field]: value });
+      const key = field as keyof ClassForm;
+      setForm((prev) => ({
+        ...prev,
+        [key]: value,
+      }));
     }
   };
 
@@ -203,7 +212,9 @@ export default function ClassManagement() {
                 type="number"
                 fullWidth
                 value={form.location.latitude}
-                onChange={(e) => handleChange("location.latitude", e.target.value)}
+                onChange={(e) =>
+                  handleChange("location.latitude", e.target.value)
+                }
               />
             </Grid>
             <Grid item xs={12} sm={6}>
@@ -212,7 +223,9 @@ export default function ClassManagement() {
                 type="number"
                 fullWidth
                 value={form.location.longitude}
-                onChange={(e) => handleChange("location.longitude", e.target.value)}
+                onChange={(e) =>
+                  handleChange("location.longitude", e.target.value)
+                }
               />
             </Grid>
 
@@ -241,7 +254,9 @@ export default function ClassManagement() {
                 label="Day of Week"
                 fullWidth
                 value={form.schedule.dayOfWeek}
-                onChange={(e) => handleChange("schedule.dayOfWeek", e.target.value)}
+                onChange={(e) =>
+                  handleChange("schedule.dayOfWeek", e.target.value)
+                }
               >
                 {[
                   "Monday",
@@ -265,7 +280,9 @@ export default function ClassManagement() {
                 type="time"
                 fullWidth
                 value={form.schedule.startTime}
-                onChange={(e) => handleChange("schedule.startTime", e.target.value)}
+                onChange={(e) =>
+                  handleChange("schedule.startTime", e.target.value)
+                }
               />
             </Grid>
 
@@ -275,7 +292,9 @@ export default function ClassManagement() {
                 type="time"
                 fullWidth
                 value={form.schedule.endTime}
-                onChange={(e) => handleChange("schedule.endTime", e.target.value)}
+                onChange={(e) =>
+                  handleChange("schedule.endTime", e.target.value)
+                }
               />
             </Grid>
           </Grid>

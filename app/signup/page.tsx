@@ -8,7 +8,6 @@ import {
   Container,
   Divider,
   IconButton,
-  InputAdornment,
   TextField,
   Typography,
   useTheme,
