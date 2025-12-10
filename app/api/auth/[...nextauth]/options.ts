@@ -1,7 +1,7 @@
 import type { NextAuthOptions, Session as NextAuthSession } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
-import GitHubProvider from "next-auth/providers/github";
-import GoogleProvider from "next-auth/providers/google";
+// import GitHubProvider from "next-auth/providers/github";
+// import GoogleProvider from "next-auth/providers/google";
 import dbConnect from "@/libs/mongodb";
 import User from "@/models/User";
 import bcrypt from "bcryptjs";
@@ -20,14 +20,14 @@ interface ExtendedSession extends NextAuthSession {
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    GitHubProvider({
-      clientId: process.env.GITHUB_CLIENT_ID as string,
-      clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
-    }),
-    GoogleProvider({
-      clientId: process.env.GOOGLE_CLIENT_ID!,
-      clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
-    }),
+    // GitHubProvider({
+    //   clientId: process.env.GITHUB_CLIENT_ID as string,
+    //   clientSecret: process.env.GITHUB_CLIENT_SECRET as string,
+    // }),
+    // GoogleProvider({
+    //   clientId: process.env.GOOGLE_CLIENT_ID!,
+    //   clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    // }),
 
     CredentialsProvider({
       name: "Credentials",
@@ -56,6 +56,7 @@ export const authOptions: NextAuthOptions = {
           image: user.image,
           name: user.name,
           gender: user.gender,
+          role: user.role,
         };
       },
     }),

@@ -191,8 +191,8 @@ export default function HomePage() {
                 : "rgba(255,255,255,0.6)"
             }
           >
-            © {new Date().getFullYear()} BSCS Attendance System — Developed by
-            Team BSCS 🎓
+            © {new Date().getFullYear()} Smart Attendance System — Developed by
+            Asim Ali Murtaza 🎓
           </Typography>
         </Box>
       </Container>

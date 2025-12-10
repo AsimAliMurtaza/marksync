@@ -30,7 +30,7 @@ export default function AttendanceReports() {
   const [loading, setLoading] = useState(false);
   useEffect(() => {
     const fetchClasses = async () => {
-      const res = await fetch("/api/classes");
+      const res = await fetch("/api/admin/classes");
       const result = await res.json();
       if (result.success) setClasses(result.data);
     };

@@ -41,7 +41,7 @@ export default function ClassManagement() {
   });
   // Fetch all classes
   const fetchClasses = async () => {
-    const res = await fetch("/api/classes");
+    const res = await fetch("/api/admin/classes");
     const result = await res.json();
     if (result.success) setClasses(result.data);
     setLoading(false);
@@ -81,7 +81,7 @@ export default function ClassManagement() {
 
   const handleSave = async () => {
     const method = editMode ? "PUT" : "POST";
-    const url = editMode ? `/api/classes/${form._id}` : `/api/classes`;
+    const url = editMode ? `/api/admin/classes/${form._id}` : `/api/admin/classes`;
 
     const res = await fetch(url, {
       method,
@@ -106,7 +106,7 @@ export default function ClassManagement() {
 
   const handleDelete = async (id: string) => {
     if (!confirm("Are you sure you want to delete this class?")) return;
-    const res = await fetch(`/api/classes/${id}`, { method: "DELETE" });
+    const res = await fetch(`/api/admin/classes/${id}`, { method: "DELETE" });
     const result = await res.json();
     if (result.success) fetchClasses();
   };

@@ -18,14 +18,7 @@ export async function POST(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { class: classId, scheduleId, userLat, userLon, deviceInfo } = body;
-
-    if (!classId || !scheduleId || !userLat || !userLon || !deviceInfo) {
-      return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 }
-      );
-    }
+    const { class: classId, userLat, userLon, deviceInfo } = body;
 
     if (!classId || !userLat || !userLon || !deviceInfo) {
       return NextResponse.json(
@@ -53,22 +46,13 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const selectedSchedule = classData.schedule.id(scheduleId);
-
-    if (!selectedSchedule) {
-      return NextResponse.json({
-        success: false,
-        error: "Invalid class schedule selected",
-      });
-    }
-
+    // ✅ 1. Check if current day matches class day
     const today = new Date();
-    const currentDay = today.toLocaleString("en-US", { weekday: "long" });
-
-    if (selectedSchedule.dayOfWeek !== currentDay) {
+    const currentDay = today.toLocaleString("en-US", { weekday: "long" }); // e.g. "Monday"
+    if (classData.schedule.dayOfWeek !== currentDay) {
       return NextResponse.json({
         success: false,
-        error: `Attendance can only be marked on ${selectedSchedule.dayOfWeek}.`,
+        error: `Attendance can only be marked on ${classData.schedule.dayOfWeek} during class hours.`,
       });
     }
 
