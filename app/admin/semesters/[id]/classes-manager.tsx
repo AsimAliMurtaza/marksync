@@ -10,14 +10,14 @@ import {
   DialogActions,
   TextField,
 } from "@mui/material";
-import { DataGrid } from "@mui/x-data-grid";
+import { DataGrid, GridRenderCellParams } from "@mui/x-data-grid";
 import { ClassForm } from "@/types/types";
 import { useSession } from "next-auth/react";
 
-export default function ClassesManager({ semesterId , initialData }) {
+export default function ClassesManager({ semesterId, initialData }: { semesterId: string; initialData: ClassForm[] }) {
   const [classes, setClasses] = useState(initialData);
   const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState(null);
+  const [editing, setEditing] = useState<ClassForm | null>(null);
     const session = useSession();
   const [form, setForm] = useState<ClassForm>({
     title: "",
@@ -53,7 +53,7 @@ export default function ClassesManager({ semesterId , initialData }) {
     setModalOpen(true);
   };
 
-  const openEdit = (cls) => {
+  const openEdit = (cls : ClassForm) => {
     setEditing(cls);
     setForm({
       title: cls.title,
@@ -97,7 +97,7 @@ export default function ClassesManager({ semesterId , initialData }) {
     } else alert(result.error);
   };
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (id: string) => {
     if (!confirm("Delete class?")) return;
     const res = await fetch(`/api/admin/classes/${id}`, { method: "DELETE" });
     if (res.ok) setClasses(classes.filter((c) => c.id !== id));
@@ -118,7 +118,7 @@ export default function ClassesManager({ semesterId , initialData }) {
       field: "actions",
       headerName: "Actions",
       flex: 1,
-      renderCell: (params) => (
+      renderCell: (params: GridRenderCellParams) => (
         <Box display="flex" gap={1}>
           <Button size="small" onClick={() => openEdit(params.row)}>
             Edit
@@ -142,7 +142,7 @@ export default function ClassesManager({ semesterId , initialData }) {
       </Button>
 
       <Box height={400}>
-        <DataGrid rows={classes} columns={columns} getRowId={(row) => row.id} />
+        <DataGrid rows={classes} columns={columns} getRowId={(row) => row.id || ""} />
       </Box>
 
       <Dialog open={modalOpen} onClose={closeModal}>

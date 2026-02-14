@@ -1,7 +1,7 @@
 import ClassesManager from "./classes-manager";
 import { prisma } from "@/libs/prisma";
 
-export default async function SemesterDetailPage({ params }) {
+export default async function SemesterDetailPage({ params }: { params: { id: string } }) {
   const semesterId = Number(params.id);
 
   const semester = await prisma.semesters.findUnique({
@@ -22,6 +22,8 @@ export default async function SemesterDetailPage({ params }) {
           allowed_radius: Number(course.allowed_radius), // Convert Decimal to number
           longitude: Number(course.longitude), // Convert Decimal to number
           latitude: Number(course.latitude), // Convert Decimal to number
+          start_time: course.start_time.toISOString(),
+          end_time: course.end_time.toISOString(),
         })),
       }
     : null;

@@ -58,7 +58,7 @@ export default function SemesterManagement() {
     });
     setOpen(true);
   };
-
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const handleOpenEdit = (sem: any) => {
     setEditMode(true);
     setForm({
@@ -126,6 +126,7 @@ export default function SemesterManagement() {
             </TableHead>
 
             <TableBody>
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
               {semesters.map((sem: any) => (
                 <TableRow key={sem.id}>
                   <Link

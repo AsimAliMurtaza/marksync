@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 import {prisma} from "@/libs/prisma"
-
+ // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 export async function GET(_: Request, { params }: any) {
   try {
     const id = BigInt(params.id)
@@ -17,11 +17,12 @@ export async function GET(_: Request, { params }: any) {
       id: semester.id.toString(),
       created_by: semester.created_by.toString(),
     })
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
-
+ // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 export async function PUT(req: Request, { params }: any) {
   try {
     const id = BigInt(params.id)
@@ -43,11 +44,12 @@ export async function PUT(req: Request, { params }: any) {
       id: updated.id.toString(),
       created_by: updated.created_by.toString(),
     })
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
 }
-
+ // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
 export async function DELETE(_: Request, { params }: any) {
   try {
     const id = BigInt(params.id)
@@ -57,6 +59,7 @@ export async function DELETE(_: Request, { params }: any) {
     })
 
     return NextResponse.json({ success: true })
+     // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 })
   }
