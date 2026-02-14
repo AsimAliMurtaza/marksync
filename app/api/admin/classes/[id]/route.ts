@@ -1,90 +1,38 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/libs/mongodb";
-import Class from "@/models/Class";
+import { prisma } from "@/libs/prisma"
 
-interface Params {
-  params: { id: string };
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { semester_id: string } }
+) {
+  const body = await req.json()
+
+  const course = await prisma.courses.update({
+    where: { id: BigInt(params.semester_id) },
+    data: {
+      title: body.title,
+      code: body.code,
+      day_of_week: body.day_of_week,
+      start_time: body.start_time ? new Date(body.start_time) : undefined,
+      end_time: body.end_time ? new Date(body.end_time) : undefined,
+      room: body.room,
+      latitude: body.latitude,
+      longitude: body.longitude,
+      allowed_radius: body.allowed_radius,
+    },
+  })
+
+  return NextResponse.json(course)
 }
 
-export async function GET(request: NextRequest, { params }: Params) {
-  try {
-    await dbConnect();
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  await prisma.courses.delete({
+    where: { id: BigInt(params.id) },
+  })
 
-    // Validate ID parameter
-    if (!params.id) {
-      return NextResponse.json(
-        { success: false, error: "Class ID is required" },
-        { status: 400 }
-      );
-    }
-
-    const classData = await Class.findOne({ _id: params.id });
-    console.log("Fetching class with ID:", classData);
-    if (!classData) {
-      return NextResponse.json(
-        { success: false, error: "Class not found" },
-        { status: 404 }
-      );
-    }
-
-    console.log("Class fetched:", classData.name);
-
-    return NextResponse.json({ success: true, data: classData });
-  } catch (error) {
-    console.error("Error fetching class:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 400 }
-    );
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-    const { id } = params;
-
-    const updated = await Class.findByIdAndUpdate(id, body, { new: true });
-
-    if (!updated)
-      return NextResponse.json(
-        { success: false, error: "Class not found" },
-        { status: 404 }
-      );
-
-    return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
-    console.error("Error updating class:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  try {
-    await dbConnect();
-    const { id } = params;
-
-    const deleted = await Class.findByIdAndDelete(id);
-
-    if (!deleted)
-      return NextResponse.json(
-        { success: false, error: "Class not found" },
-        { status: 404 }
-      );
-
-    return NextResponse.json({
-      success: true,
-      message: "Class deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting class:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
-  }
+  return new NextResponse(null, { status: 204 })
 }

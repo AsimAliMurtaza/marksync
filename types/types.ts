@@ -1,20 +1,23 @@
 export interface ClassData {
-  _id: string;
-  name: string;
+  id: string;
+  title: string;
   code: string;
-  schedule: {
-    dayOfWeek: string;
-    startTime: string;
-    endTime: string;
-    room: string;
-  };
-  location?: {
-    latitude: number;
-    longitude: number;
-  };
-  allowedRadius?: number;
-  status?: "On Time" | "Cancelled" | "Rescheduled";
-  createdBy: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  room: string;
+  latitude: number;
+  longitude: number;
+  semester_id: string;
+  allowed_radius?: number;
+  created_by: string;
+}
+
+export interface Semester {
+  id: string;
+  name: string;
+  start_date: string;
+  end_date: string;
 }
 
 export interface ApiResponse {
@@ -22,8 +25,6 @@ export interface ApiResponse {
   data?: ClassData | ClassData[];
   error?: string;
 }
-
-
 
 export interface AttendanceStatusResponse {
   success: boolean;
@@ -37,21 +38,18 @@ export interface SnackbarState {
   severity: "success" | "error" | "warning" | "info";
 }
 
-
 export interface ClassForm {
-  _id?: string;
-  name: string;
+  id?: string;
+  title: string;
   code: string;
-  allowedRadius: number;
-  location: {
-    latitude: number;
-    longitude: number;
-  };
-  schedule: {
-    dayOfWeek: string;
-    startTime: string;
-    endTime: string;
-    room: string;
-  };
-  createdBy: string;
-};
+  allowed_radius: number;
+  latitude: number;
+  longitude: number;
+  semester_id: string;
+  day_of_week: string;
+  start_time: string;
+  end_time: string;
+  room: string;
+  created_by: string;
+  users?: string[]; // Add users field to ClassForm
+}
