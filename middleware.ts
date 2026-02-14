@@ -5,7 +5,7 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({ req });
   const path = req.nextUrl.pathname;
 
-  const isAdmin = token?.role === "cr";
+  const isAdmin = token?.role === "admin";
 
   const isAdminRoute = path.startsWith("/admin");
   const isUserDashboard = path.startsWith("/dashboard");

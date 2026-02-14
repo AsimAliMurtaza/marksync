@@ -10,8 +10,8 @@ export default async function RedirectPage() {
     redirect("/auth/signin");
   }
 
-  if (session?.user?.role === "cr") {
-    redirect("/admin");
+  if (session?.user?.role === "admin") {
+    redirect("/admin/semesters");
   } else {
     redirect("/home");
   }
