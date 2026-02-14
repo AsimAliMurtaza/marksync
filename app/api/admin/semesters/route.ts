@@ -14,6 +14,7 @@ export async function GET() {
     }));
 
     return NextResponse.json(serializedSemesters); // simple array
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
@@ -46,6 +47,7 @@ export async function POST(req: NextRequest) {
       id: semester.id.toString(),
       created_by: semester.created_by.toString(),
     });
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   } catch (err) {
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
