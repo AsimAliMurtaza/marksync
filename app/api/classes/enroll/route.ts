@@ -1,35 +1,57 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
+import { prisma } from "@/libs/prisma";
 import { getServerSession } from "next-auth";
-import dbConnect from "@/libs/mongodb";
-import Class from "@/models/Class";
 import { authOptions } from "../../auth/[...nextauth]/options";
-import User from "@/models/User";
 
-export async function POST(req: NextRequest) {
-  await dbConnect();
+export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
 
-  if (!session || !session.user) {
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { classId } = await req.json();
+  const body = await req.json();
 
-  const selectedClass = await Class.findById(classId);
-  if (!selectedClass) {
-    return NextResponse.json({ error: "Class not found" }, { status: 404 });
+  const courseId = BigInt(body.classId);
+  const studentId = BigInt(session?.user?.id);
+
+  if (!courseId) {
+    return NextResponse.json({ error: "classId is required" }, { status: 400 });
   }
 
-  // Prevent double enrollment
-  if (selectedClass.enrolledStudents.includes(session.user.id)) {
+  // Check if already enrolled
+  const existing = await prisma.enrollments.findUnique({
+    where: {
+      student_id_course_id: {
+        student_id: studentId,
+        course_id: courseId,
+      },
+    },
+  });
+
+  const serializedExisting = existing
+    ? {
+        ...existing,
+        student_id: existing.student_id.toString(),
+        course_id: existing.course_id.toString(),
+      }
+    : null;
+
+  if (serializedExisting) {
     return NextResponse.json({ message: "Already enrolled" });
   }
 
-  selectedClass.enrolledStudents.push(session.user.id);
-  await selectedClass.save();
-  const user = await User.findById(session.user.id);
-  user.enrolledClasses.push(selectedClass._id);
-  await user.save();
+  // Create the enrollment row
+  const enrollment = await prisma.enrollments.create({
+    data: {
+      student_id: studentId,
+      course_id: courseId,
+    },
+  });
 
-  return NextResponse.json({ message: "Enrolled successfully" });
+
+  return NextResponse.json(
+    { message: "Enrolled successfully", isEnrolled: true },
+    { status: 201 }
+  );
 }
