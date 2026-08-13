@@ -1,38 +1,84 @@
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/libs/prisma"
+import { prisma } from "@/libs/prisma";
 
+export const dynamic = "force-dynamic";
 
 export async function PUT(
   req: NextRequest,
-  { params }: { params: { semester_id: string } }
+  { params }: { params: { id: string } }
 ) {
-  const body = await req.json()
+  try {
+    const courseId = Number(params.id);
+    const body = await req.json();
 
-  const course = await prisma.courses.update({
-    where: { id: BigInt(params.semester_id) },
-    data: {
-      title: body.title,
-      code: body.code,
-      day_of_week: body.day_of_week,
-      start_time: body.start_time ? new Date(body.start_time) : undefined,
-      end_time: body.end_time ? new Date(body.end_time) : undefined,
-      room: body.room,
-      latitude: body.latitude,
-      longitude: body.longitude,
-      allowed_radius: body.allowed_radius,
-    },
-  })
+    const {
+      title,
+      code,
+      room,
+      day_of_week,
+      dayOfWeek,
+      start_time,
+      startTime,
+      end_time,
+      endTime,
+      latitude,
+      longitude,
+      allowed_radius,
+      allowedRadius,
+      instructor_id,
+      instructorId,
+    } = body;
 
-  return NextResponse.json(course)
+    const course = await prisma.course.update({
+      where: { id: courseId },
+      data: {
+        ...(title && { title: title.trim() }),
+        ...(code && { code: code.trim().toUpperCase() }),
+        ...(room && { room: room.trim() }),
+        ...((dayOfWeek || day_of_week) && { dayOfWeek: dayOfWeek || day_of_week }),
+        ...((startTime || start_time) && { startTime: startTime || start_time }),
+        ...((endTime || end_time) && { endTime: endTime || end_time }),
+        ...(latitude !== undefined && { latitude }),
+        ...(longitude !== undefined && { longitude }),
+        ...((allowedRadius !== undefined || allowed_radius !== undefined) && {
+          allowedRadius: allowedRadius ?? allowed_radius,
+        }),
+        ...(instructorId !== undefined || instructor_id !== undefined
+          ? { instructorId: instructorId || instructor_id ? Number(instructorId || instructor_id) : null }
+          : {}),
+      },
+      include: {
+        semester: true,
+        instructor: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    return NextResponse.json({ success: true, data: course });
+  } catch (error) {
+    console.error("Error updating class:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to update class" },
+      { status: 500 }
+    );
+  }
 }
 
 export async function DELETE(
   _req: NextRequest,
   { params }: { params: { id: string } }
 ) {
-  await prisma.courses.delete({
-    where: { id: BigInt(params.id) },
-  })
+  try {
+    const courseId = Number(params.id);
+    await prisma.course.delete({
+      where: { id: courseId },
+    });
 
-  return new NextResponse(null, { status: 204 })
+    return NextResponse.json({ success: true, message: "Course deleted successfully" });
+  } catch (error) {
+    console.error("Error deleting class:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to delete class" },
+      { status: 500 }
+    );
+  }
 }

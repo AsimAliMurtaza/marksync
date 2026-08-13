@@ -1,87 +1,57 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/libs/mongodb";
-import Class from "@/models/Class";
+import { prisma } from "@/libs/prisma";
 
-interface Params {
-  params: { id: string };
-}
+export const dynamic = "force-dynamic";
 
-export async function GET(request: NextRequest, { params }: Params) {
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    await dbConnect();
+    const courseId = Number(params.id);
 
-    // Validate ID parameter
-    if (!params.id) {
+    if (!courseId) {
       return NextResponse.json(
-        { success: false, error: "Class ID is required" },
+        { success: false, error: "Valid course ID is required" },
         { status: 400 }
       );
     }
 
-    const classData = await Class.findOne({ _id: params.id });
-    console.log("Fetching class with ID:", classData);
-    if (!classData) {
+    const courseData = await prisma.course.findUnique({
+      where: { id: courseId },
+      include: {
+        semester: true,
+        instructor: { select: { id: true, name: true, email: true } },
+      },
+    });
+
+    if (!courseData) {
       return NextResponse.json(
-        { success: false, error: "Class not found" },
+        { success: false, error: "Course not found" },
         { status: 404 }
       );
     }
 
-    console.log("Class fetched:", classData.name);
+    const formattedCourse = {
+      ...courseData,
+      _id: String(courseData.id),
+      name: courseData.title,
+      allowedRadius: courseData.allowedRadius,
+      schedule: {
+        dayOfWeek: courseData.dayOfWeek,
+        startTime: courseData.startTime,
+        endTime: courseData.endTime,
+        room: courseData.room,
+      },
+      location: {
+        latitude: Number(courseData.latitude),
+        longitude: Number(courseData.longitude),
+      },
+    };
 
-    return NextResponse.json({ success: true, data: classData });
+    return NextResponse.json({ success: true, data: formattedCourse });
   } catch (error) {
-    console.error("Error fetching class:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 400 }
-    );
-  }
-}
-
-export async function PUT(req: NextRequest, { params }: Params) {
-  try {
-    await dbConnect();
-    const body = await req.json();
-    const { id } = params;
-
-    const updated = await Class.findByIdAndUpdate(id, body, { new: true });
-
-    if (!updated)
-      return NextResponse.json(
-        { success: false, error: "Class not found" },
-        { status: 404 }
-      );
-
-    return NextResponse.json({ success: true, data: updated });
-  } catch (error) {
-    console.error("Error updating class:", error);
-    return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
-    );
-  }
-}
-
-export async function DELETE(req: NextRequest, { params }: Params) {
-  try {
-    await dbConnect();
-    const { id } = params;
-
-    const deleted = await Class.findByIdAndDelete(id);
-
-    if (!deleted)
-      return NextResponse.json(
-        { success: false, error: "Class not found" },
-        { status: 404 }
-      );
-
-    return NextResponse.json({
-      success: true,
-      message: "Class deleted successfully",
-    });
-  } catch (error) {
-    console.error("Error deleting class:", error);
+    console.error("Error fetching course detail:", error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },
       { status: 500 }

@@ -6,151 +6,196 @@ import {
   Box,
   Button,
   Container,
-  Divider,
-  IconButton,
+  FormControl,
+  FormLabel,
   TextField,
   Typography,
-  useTheme,
+  Paper,
+  Stack,
+  Link,
+  CircularProgress,
 } from "@mui/material";
-import { FiSun, FiMoon } from "react-icons/fi";
-import { motion } from "framer-motion";
-import Image from "next/image";
+import SchoolOutlinedIcon from "@mui/icons-material/SchoolOutlined";
 import toast from "react-hot-toast";
 
 export default function SignUpPage() {
+  const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const router = useRouter();
-  const theme = useTheme();
 
   const handleSignup = async () => {
-    if (!email || !password) {
-      setError("All fields are required!");
+    if (!name || !email || !password) {
+      setError("Please fill in all fields");
       return;
     }
 
     setLoading(true);
     setError("");
 
-    const res = await fetch("/api/auth/signup", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name: "asim" }),
-    });
+    try {
+      const res = await fetch("/api/auth/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name, email, password, role: "STUDENT" }),
+      });
 
-    setLoading(false);
+      const result = await res.json();
+      setLoading(false);
 
-    if (res.ok) {
-      toast.success("Account created! You can now log in.");
-      router.push("/login");
-    } else {
-      setError("Signup failed! Try again.");
+      if (res.ok && result.success) {
+        toast.success("Account created! Please sign in.");
+        router.push("/login");
+      } else {
+        setError(result.error || "Signup failed! Please try again.");
+      }
+    } catch {
+      setLoading(false);
+      setError("Network error occurred during sign up.");
     }
   };
 
   return (
     <Box
-      display="flex"
-      justifyContent="center"
-      alignItems="center"
-      minHeight="100vh"
       sx={{
-        bgcolor:
-          theme.palette.mode === "light" ? "grey.50" : theme.palette.background.default,
+        minHeight: "100vh",
+        backgroundColor: "#F8FAFC",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        py: 6,
+        px: 2,
       }}
     >
-      <Container maxWidth="xs">
-        <motion.div
-          initial={{ opacity: 0, y: -30 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
+      <Container maxWidth="xs" disableGutters>
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3.5, sm: 4.5 },
+            borderRadius: "20px",
+            backgroundColor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.04)",
+          }}
         >
-          <Box
-            sx={{
-              p: 4,
-              borderRadius: 3,
-              bgcolor: theme.palette.background.paper,
-              boxShadow: 3,
-              position: "relative",
-              textAlign: "center",
-            }}
-          >
-            {/* 🌙 / ☀️ Theme Toggle */}
-            <IconButton
-              onClick={() =>
-                theme.palette.mode === "light"
-                  ? document.documentElement.setAttribute("data-theme", "dark")
-                  : document.documentElement.removeAttribute("data-theme")
-              }
-              sx={{ position: "absolute", top: 16, right: 16 }}
-            >
-              {theme.palette.mode === "light" ? <FiMoon /> : <FiSun />}
-            </IconButton>
-
-            {/* 🏢 Logo */}
-            <Image
-              src="/logo.svg"
-              alt="Logo"
-              width={80}
-              height={40}
-              style={{ margin: "0 auto 16px" }}
-            />
-
-            {/* 📝 Heading */}
-            <Typography variant="h6" fontWeight="bold" gutterBottom>
-              Create your account
-            </Typography>
-
-            <Box display="flex" flexDirection="column" gap={2} mt={2}>
-              {error && (
-                <Typography color="error" fontSize="0.9rem">
-                  {error}
-                </Typography>
-              )}
-
-              {/* 📨 Email Input */}
-              <TextField
-                label="Email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                variant="outlined"
-                fullWidth
-              />
-
-              {/* 🔒 Password Input */}
-              <TextField
-                label="Password"
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                variant="outlined"
-                fullWidth
-              />
-
-              <Button
-                variant="outlined"
-                onClick={handleSignup}
-                disabled={loading}
-                fullWidth
+          <Stack spacing={3}>
+            <Box textAlign="center">
+              <Box
+                sx={{
+                  width: 48,
+                  height: 48,
+                  borderRadius: "12px",
+                  bgcolor: "#EEF2FF",
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  mb: 1.5,
+                }}
               >
-                {loading ? "Creating..." : "Sign Up"}
-              </Button>
-
-              <Divider sx={{ my: 2 }} />
-
-              {/* 🔗 Redirect to Login */}
-              <Typography variant="body2" textAlign="center">
-                Already have an account?{" "}
-                <Button variant="text" onClick={() => router.push("/login")}>
-                  Log in
-                </Button>
+                <SchoolOutlinedIcon sx={{ fontSize: 26, color: "#6366F1" }} />
+              </Box>
+              <Typography variant="h5" fontWeight={800} color="#0F172A">
+                Create Account
+              </Typography>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
+                Register to track your course attendance
               </Typography>
             </Box>
-          </Box>
-        </motion.div>
+
+            {error && (
+              <Box
+                sx={{
+                  p: 1.5,
+                  borderRadius: "10px",
+                  bgcolor: "#FFF1F2",
+                  border: "1px solid #FFE4E6",
+                  color: "#E11D48",
+                  fontSize: "0.85rem",
+                  fontWeight: 600,
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </Box>
+            )}
+
+            {/* Name */}
+            <FormControl fullWidth>
+              <FormLabel sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.75 }}>
+                Full Name
+              </FormLabel>
+              <TextField
+                placeholder="Jane Doe"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                size="medium"
+                fullWidth
+              />
+            </FormControl>
+
+            {/* Email */}
+            <FormControl fullWidth>
+              <FormLabel sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.75 }}>
+                Email Address
+              </FormLabel>
+              <TextField
+                type="email"
+                placeholder="student@university.edu"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                size="medium"
+                fullWidth
+              />
+            </FormControl>
+
+            {/* Password */}
+            <FormControl fullWidth>
+              <FormLabel sx={{ fontSize: "0.875rem", fontWeight: 600, color: "#334155", mb: 0.75 }}>
+                Password
+              </FormLabel>
+              <TextField
+                type="password"
+                placeholder="••••••••"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                size="medium"
+                fullWidth
+              />
+            </FormControl>
+
+            <Button
+              onClick={handleSignup}
+              variant="contained"
+              fullWidth
+              size="large"
+              sx={{
+                py: 1.3,
+                fontSize: "0.95rem",
+                borderRadius: "10px",
+              }}
+              disabled={loading}
+            >
+              {loading ? <CircularProgress size={22} color="inherit" /> : "Create Account"}
+            </Button>
+
+            <Box textAlign="center" pt={1}>
+              <Typography variant="body2" color="text.secondary">
+                Already have an account?{" "}
+                <Link
+                  component="button"
+                  underline="hover"
+                  fontWeight={700}
+                  color="#6366F1"
+                  onClick={() => router.push("/login")}
+                >
+                  Sign In
+                </Link>
+              </Typography>
+            </Box>
+          </Stack>
+        </Paper>
       </Container>
     </Box>
   );

@@ -1,54 +1,62 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/libs/prisma";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const semesters = await prisma.semesters.findMany({
-      orderBy: { created_at: "desc" },
+    const semesters = await prisma.semester.findMany({
+      orderBy: { createdAt: "desc" },
+      include: {
+        _count: {
+          select: { courses: true },
+        },
+      },
     });
 
-    const serializedSemesters = semesters.map((semester) => ({
-      ...semester,
-      id: semester.id.toString(),
-      created_by: semester.created_by.toString(),
-    }));
-
-    return NextResponse.json(serializedSemesters); // simple array
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json(semesters);
   } catch (err) {
+    console.error("Error fetching admin semesters:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const body = await req.json();
+    const { name, start_date, startDate, end_date, endDate, created_by } = body;
 
-    const { name, start_date, end_date, created_by } = body;
+    const sDate = startDate || start_date;
+    const eDate = endDate || end_date;
 
-    if (!name || !start_date || !end_date || !created_by) {
+    if (!name || !sDate || !eDate) {
       return NextResponse.json(
         { error: "Missing required fields" },
-        { status: 400 },
+        { status: 400 }
       );
     }
 
-    const semester = await prisma.semesters.create({
+    const creatorId = Number(created_by || session.user.id);
+
+    const semester = await prisma.semester.create({
       data: {
-        name,
-        start_date: new Date(start_date),
-        end_date: new Date(end_date),
-        created_by: BigInt(created_by),
+        name: name.trim(),
+        startDate: new Date(sDate),
+        endDate: new Date(eDate),
+        createdBy: creatorId,
       },
     });
 
-    return NextResponse.json({
-      ...semester,
-      id: semester.id.toString(),
-      created_by: semester.created_by.toString(),
-    });
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json(semester, { status: 201 });
   } catch (err) {
+    console.error("Error creating semester:", err);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

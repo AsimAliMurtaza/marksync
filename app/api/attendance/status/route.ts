@@ -1,54 +1,42 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/libs/mongodb";
-import Attendance from "@/models/Attendance";
-import User from "@/models/User";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { prisma } from "@/libs/prisma";
+
+export const dynamic = "force-dynamic";
 
 export async function GET(req: NextRequest) {
   try {
-    // Authenticate user
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
         { status: 401 }
       );
     }
 
-    const userEmail = session.user?.email;
     const { searchParams } = new URL(req.url);
-    const classId = searchParams.get("classId");
+    const classIdParam = searchParams.get("classId") || searchParams.get("courseId");
 
-    if (!classId) {
+    if (!classIdParam) {
       return NextResponse.json(
         { success: false, error: "Missing classId parameter" },
         { status: 400 }
       );
     }
 
-    await dbConnect();
+    const courseId = Number(classIdParam);
+    const studentId = Number(session.user.id);
 
-    // Find the user
-    const user = await User.findOne({ email: userEmail });
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
-
-    // Define date range for today
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
 
-    // ✅ Correct query fields (based on your schema)
-    const attendance = await Attendance.findOne({
-      class: classId,
-      student: user._id,
-      createdAt: { $gte: today, $lt: tomorrow },
+    const attendance = await prisma.attendance.findFirst({
+      where: {
+        courseId,
+        studentId,
+        date: today,
+      },
     });
 
     return NextResponse.json({
@@ -59,7 +47,7 @@ export async function GET(req: NextRequest) {
       },
     });
   } catch (error) {
-    console.error("Error checking attendance:", error);
+    console.error("Error checking attendance status:", error);
     return NextResponse.json(
       { success: false, error: (error as Error).message },
       { status: 500 }

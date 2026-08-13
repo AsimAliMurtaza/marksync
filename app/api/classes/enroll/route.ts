@@ -1,57 +1,57 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/libs/prisma";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/options";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: Request) {
-  const session = await getServerSession(authOptions);
+  try {
+    const session = await getServerSession(authOptions);
 
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
+    if (!session?.user?.id) {
+      return NextResponse.json({ success: false, error: "Unauthorized" }, { status: 401 });
+    }
 
-  const body = await req.json();
+    const body = await req.json();
+    const classId = body.classId || body.courseId;
 
-  const courseId = BigInt(body.classId);
-  const studentId = BigInt(session?.user?.id);
+    if (!classId) {
+      return NextResponse.json({ success: false, error: "classId is required" }, { status: 400 });
+    }
 
-  if (!courseId) {
-    return NextResponse.json({ error: "classId is required" }, { status: 400 });
-  }
+    const courseId = Number(classId);
+    const studentId = Number(session.user.id);
 
-  // Check if already enrolled
-  const existing = await prisma.enrollments.findUnique({
-    where: {
-      student_id_course_id: {
-        student_id: studentId,
-        course_id: courseId,
+    const existing = await prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId,
+          courseId,
+        },
       },
-    },
-  });
+    });
 
-  const serializedExisting = existing
-    ? {
-        ...existing,
-        student_id: existing.student_id.toString(),
-        course_id: existing.course_id.toString(),
-      }
-    : null;
+    if (existing) {
+      return NextResponse.json({ success: true, message: "Already enrolled", isEnrolled: true });
+    }
 
-  if (serializedExisting) {
-    return NextResponse.json({ message: "Already enrolled" });
+    await prisma.enrollment.create({
+      data: {
+        studentId,
+        courseId,
+      },
+    });
+
+    return NextResponse.json(
+      { success: true, message: "Enrolled successfully", isEnrolled: true },
+      { status: 201 }
+    );
+  } catch (error) {
+    console.error("Enrollment error:", error);
+    return NextResponse.json(
+      { success: false, error: "Failed to enroll in class" },
+      { status: 500 }
+    );
   }
-
-  // Create the enrollment row
-  const enrollment = await prisma.enrollments.create({
-    data: {
-      student_id: studentId,
-      course_id: courseId,
-    },
-  });
-
-
-  return NextResponse.json(
-    { message: "Enrolled successfully", isEnrolled: true },
-    { status: 201 }
-  );
 }
