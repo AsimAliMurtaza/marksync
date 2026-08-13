@@ -3,30 +3,32 @@ import bcrypt from "bcryptjs";
 import { signJwtToken } from "@/libs/jwt";
 import { prisma } from "@/libs/prisma";
 
+export const dynamic = "force-dynamic";
+
 export async function POST(req: Request) {
   try {
-
     const { email, password } = await req.json();
 
     if (!email || !password) {
       return NextResponse.json(
-        { error: "Email and password are required" },
+        { success: false, error: "Email and password are required" },
         { status: 400 }
       );
     }
 
-    const user = await prisma.users.findUnique({ where: { email } });
+    const cleanEmail = email.trim().toLowerCase();
+    const user = await prisma.user.findUnique({ where: { email: cleanEmail } });
     if (!user) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { success: false, error: "Invalid email or password" },
         { status: 401 }
       );
     }
 
-    const isMatch = await bcrypt.compare(password, user.password_hash);
+    const isMatch = await bcrypt.compare(password, user.passwordHash);
     if (!isMatch) {
       return NextResponse.json(
-        { error: "Invalid email or password" },
+        { success: false, error: "Invalid email or password" },
         { status: 401 }
       );
     }
@@ -35,8 +37,9 @@ export async function POST(req: Request) {
 
     return NextResponse.json(
       {
+        success: true,
         message: "Login successful",
-        user: { id: user.id, name: user.name, email: user.email },
+        data: { id: user.id, name: user.name, email: user.email, role: user.role },
         token,
       },
       { status: 200 }
@@ -44,7 +47,7 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Sign-in Error:", error);
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { success: false, error: "Internal Server Error" },
       { status: 500 }
     );
   }

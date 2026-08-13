@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Box,
   Paper,
@@ -11,16 +12,20 @@ import {
   Snackbar,
   Alert,
   Divider,
+  Container,
+  IconButton,
 } from "@mui/material";
+import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 
 type ProfileData = {
   name: string;
   email: string;
-  gender?: string;
-  role?: string;
+  gender?: string | null;
+  role?: string | null;
 };
 
 export default function ProfilePage(): JSX.Element {
+  const router = useRouter();
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [form, setForm] = useState<ProfileData>({
     name: "",
@@ -41,7 +46,6 @@ export default function ProfilePage(): JSX.Element {
     severity: "success",
   });
 
-  // ---------------- Load Profile ----------------
   useEffect(() => {
     const loadProfile = async () => {
       try {
@@ -51,7 +55,12 @@ export default function ProfilePage(): JSX.Element {
         if (!data.success) throw new Error(data.error);
 
         setProfile(data.data);
-        setForm(data.data);
+        setForm({
+          name: data.data.name || "",
+          email: data.data.email || "",
+          gender: data.data.gender || "",
+          role: data.data.role || "",
+        });
       } catch {
         setSnackbar({
           open: true,
@@ -66,7 +75,6 @@ export default function ProfilePage(): JSX.Element {
     loadProfile();
   }, []);
 
-  // ---------------- Input Handler ----------------
   const handleChange = (
     e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
   ): void => {
@@ -74,7 +82,6 @@ export default function ProfilePage(): JSX.Element {
     setForm((prev) => ({ ...prev, [name]: value }));
   };
 
-  // ---------------- Save Handler ----------------
   const handleSave = async (): Promise<void> => {
     try {
       setSaving(true);
@@ -109,97 +116,106 @@ export default function ProfilePage(): JSX.Element {
 
   if (loading)
     return (
-      <Box display="flex" justifyContent="center" mt={10}>
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="100vh" bgcolor="#F8FAFC">
         <CircularProgress />
       </Box>
     );
 
   if (!profile)
     return (
-      <Typography textAlign="center" color="error">
-        Profile not found
-      </Typography>
+      <Box textAlign="center" py={10} bgcolor="#F8FAFC" minHeight="100vh">
+        <Typography color="error">Profile not found</Typography>
+      </Box>
     );
 
   return (
     <Box
       sx={{
         minHeight: "100vh",
-        bgcolor: "#f4f6f8",
-        px: 3,
-        py: 6,
+        bgcolor: "#F8FAFC",
+        px: { xs: 2, sm: 4 },
+        py: { xs: 4, sm: 6 },
       }}
     >
-      <Button
-        variant="outlined"
-        sx={{ mb: 4 }}
-        onClick={() => window.history.back()}
-      >
-        Back
-      </Button>
-      <Paper
-        sx={{
-          maxWidth: 600,
-          mx: "auto",
-          p: 4,
-          borderRadius: 2,
-        }}
-      >
-        <Typography variant="h4" mb={1}>
-          Profile
-        </Typography>
-        <Typography color="text.secondary" mb={3}>
-          Manage your personal information
-        </Typography>
+      <Container maxWidth="sm" disableGutters>
+        <Box display="flex" alignItems="center" gap={1.5} mb={3}>
+          <IconButton onClick={() => router.back()} sx={{ bgcolor: "#FFFFFF", border: "1px solid #E2E8F0" }}>
+            <ArrowBackIcon fontSize="small" />
+          </IconButton>
+          <Typography variant="h6" fontWeight={700} color="#0F172A">
+            Account Profile
+          </Typography>
+        </Box>
 
-        <Divider sx={{ mb: 4 }} />
-
-        <TextField
-          fullWidth
-          name="name"
-          label="Full Name"
-          value={form.name}
-          onChange={handleChange}
-          sx={{ mb: 3 }}
-        />
-
-        <TextField
-          fullWidth
-          name="email"
-          label="Email"
-          value={form.email}
-          disabled
-          sx={{ mb: 3 }}
-        />
-
-        <TextField
-          fullWidth
-          name="gender"
-          label="Gender"
-          value={form.gender}
-          onChange={handleChange}
-          sx={{ mb: 3 }}
-        />
-
-        <TextField
-          fullWidth
-          name="role"
-          label="Role"
-          value={form.role}
-          disabled
-          sx={{ mb: 4 }}
-        />
-
-        <Button
-          fullWidth
-          size="large"
-          variant="contained"
-          disabled={saving}
-          onClick={handleSave}
+        <Paper
+          elevation={0}
+          sx={{
+            p: { xs: 3, sm: 4 },
+            borderRadius: "20px",
+            bgcolor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.04)",
+          }}
         >
-          {saving ? "Saving..." : "Save Changes"}
-        </Button>
-      </Paper>
+          <Typography variant="h5" fontWeight={800} color="#0F172A">
+            Personal Information
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5, mb: 3 }}>
+            Manage your personal profile details and settings
+          </Typography>
+
+          <Divider sx={{ mb: 3 }} />
+
+          <TextField
+            fullWidth
+            name="name"
+            label="Full Name"
+            value={form.name}
+            onChange={handleChange}
+            sx={{ mb: 2.5 }}
+          />
+
+          <TextField
+            fullWidth
+            name="email"
+            label="Email Address"
+            value={form.email}
+            disabled
+            helperText="Email cannot be changed"
+            sx={{ mb: 2.5 }}
+          />
+
+          <TextField
+            fullWidth
+            name="gender"
+            label="Gender"
+            value={form.gender || ""}
+            onChange={handleChange}
+            placeholder="Male / Female / Prefer not to say"
+            sx={{ mb: 2.5 }}
+          />
+
+          <TextField
+            fullWidth
+            name="role"
+            label="System Role"
+            value={form.role || ""}
+            disabled
+            sx={{ mb: 4 }}
+          />
+
+          <Button
+            fullWidth
+            size="large"
+            variant="contained"
+            disabled={saving}
+            onClick={handleSave}
+            sx={{ py: 1.3, borderRadius: "10px", fontSize: "0.95rem" }}
+          >
+            {saving ? <CircularProgress size={22} color="inherit" /> : "Save Changes"}
+          </Button>
+        </Paper>
+      </Container>
 
       <Snackbar
         open={snackbar.open}

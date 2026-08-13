@@ -1,66 +1,77 @@
-import { NextResponse } from "next/server"
-import {prisma} from "@/libs/prisma"
- // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-export async function GET(_: Request, { params }: any) {
+import { NextResponse, NextRequest } from "next/server";
+import { prisma } from "@/libs/prisma";
+
+export const dynamic = "force-dynamic";
+
+export async function GET(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const id = BigInt(params.id)
+    const id = Number(params.id);
+    const semester = await prisma.semester.findUnique({
+      where: { id },
+      include: {
+        courses: {
+          include: {
+            instructor: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    });
 
-    const semester = await prisma.semesters.findUnique({
-      where: { id }
-    })
+    if (!semester) {
+      return NextResponse.json({ error: "Not found" }, { status: 404 });
+    }
 
-    if (!semester)
-      return NextResponse.json({ error: "Not found" }, { status: 404 })
-
-    return NextResponse.json({
-      ...semester,
-      id: semester.id.toString(),
-      created_by: semester.created_by.toString(),
-    })
-     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json(semester);
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    console.error("Error fetching semester detail:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
- // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-export async function PUT(req: Request, { params }: any) {
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const id = BigInt(params.id)
-    const body = await req.json()
+    const id = Number(params.id);
+    const body = await req.json();
+    const { name, start_date, startDate, end_date, endDate } = body;
 
-    const { name, start_date, end_date } = body
+    const sDate = startDate || start_date;
+    const eDate = endDate || end_date;
 
-    const updated = await prisma.semesters.update({
+    const updated = await prisma.semester.update({
       where: { id },
       data: {
-        name,
-        start_date: new Date(start_date),
-        end_date: new Date(end_date),
-      }
-    })
+        ...(name && { name: name.trim() }),
+        ...(sDate && { startDate: new Date(sDate) }),
+        ...(eDate && { endDate: new Date(eDate) }),
+      },
+    });
 
-    return NextResponse.json({
-      ...updated,
-      id: updated.id.toString(),
-      created_by: updated.created_by.toString(),
-    })
-     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json(updated);
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    console.error("Error updating semester:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
- // eslint-disable-next-line @typescript-eslint/no-unused-vars, @typescript-eslint/no-explicit-any
-export async function DELETE(_: Request, { params }: any) {
+
+export async function DELETE(
+  _req: NextRequest,
+  { params }: { params: { id: string } }
+) {
   try {
-    const id = BigInt(params.id)
+    const id = Number(params.id);
+    await prisma.semester.delete({
+      where: { id },
+    });
 
-    await prisma.semesters.delete({
-      where: { id }
-    })
-
-    return NextResponse.json({ success: true })
-     // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    return NextResponse.json({ success: true });
   } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 })
+    console.error("Error deleting semester:", err);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

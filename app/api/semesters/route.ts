@@ -1,21 +1,17 @@
-import { NextResponse, NextRequest } from "next/server";
+import { NextResponse } from "next/server";
 import { prisma } from "@/libs/prisma";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
-    const semesters = await prisma.semesters.findMany({
-      orderBy: { created_at: "desc" },
+    const semesters = await prisma.semester.findMany({
+      orderBy: { startDate: "desc" },
     });
 
-    const serializedSemesters = semesters.map((semester) => ({
-      ...semester,
-      id: semester.id.toString(),
-      created_by: semester.created_by.toString(),
-    }));
-
-    return NextResponse.json(serializedSemesters); // simple array
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  } catch (err) {
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(semesters);
+  } catch (error) {
+    console.error("Error fetching semesters:", error);
+    return NextResponse.json({ error: "Failed to fetch semesters" }, { status: 500 });
   }
 }

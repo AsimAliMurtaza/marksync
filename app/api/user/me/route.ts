@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { authOptions } from "../../auth/[...nextauth]/options";
-import dbConnect from "@/libs/mongodb";
-import User from "@/models/User";
+import { authOptions } from "@/app/api/auth/[...nextauth]/options";
+import { prisma } from "@/libs/prisma";
+
+export const dynamic = "force-dynamic";
 
 export async function GET() {
   try {
@@ -15,11 +16,16 @@ export async function GET() {
       );
     }
 
-    await dbConnect();
-
-    const user = await User.findOne({ email: session.user.email }).select(
-      "name email gender role"
-    );
+    const user = await prisma.user.findUnique({
+      where: { email: session.user.email },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        gender: true,
+        role: true,
+      },
+    });
 
     if (!user) {
       return NextResponse.json(
@@ -62,23 +68,20 @@ export async function PUT(req: NextRequest) {
       );
     }
 
-    await dbConnect();
-
-    const updatedUser = await User.findOneAndUpdate(
-      { email: session.user.email },
-      {
-        name,
-        gender,
+    const updatedUser = await prisma.user.update({
+      where: { email: session.user.email },
+      data: {
+        name: name.trim(),
+        gender: gender || null,
       },
-      { new: true, runValidators: true }
-    ).select("name email gender role");
-
-    if (!updatedUser) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        gender: true,
+        role: true,
+      },
+    });
 
     return NextResponse.json({
       success: true,

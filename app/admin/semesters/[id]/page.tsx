@@ -4,38 +4,67 @@ import { prisma } from "@/libs/prisma";
 export default async function SemesterDetailPage({ params }: { params: { id: string } }) {
   const semesterId = Number(params.id);
 
-  const semester = await prisma.semesters.findUnique({
-    where: { id: semesterId },
-    include: { courses: true },
-  });
+  const [semester, instructors] = await Promise.all([
+    prisma.semester.findUnique({
+      where: { id: semesterId },
+      include: {
+        courses: {
+          include: {
+            instructor: { select: { id: true, name: true, email: true } },
+          },
+        },
+      },
+    }),
+    prisma.user.findMany({
+      where: {
+        OR: [{ role: "INSTRUCTOR" }, { role: "ADMIN" }],
+      },
+      select: { id: true, name: true, email: true, role: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
 
-  const serializedSemester = semester
-    ? {
-        ...semester,
-        id: semester.id.toString(),
-        created_by: semester.created_by.toString(),
-        courses: semester.courses.map(course => ({
-          ...course,
-          id: course.id.toString(),
-          semester_id: course.semester_id.toString(),
-          created_by: course.created_by.toString(),
-          allowed_radius: Number(course.allowed_radius), // Convert Decimal to number
-          longitude: Number(course.longitude), // Convert Decimal to number
-          latitude: Number(course.latitude), // Convert Decimal to number
-          start_time: course.start_time.toISOString(),
-          end_time: course.end_time.toISOString(),
-        })),
-      }
-    : null;
+  if (!semester) {
+    return <div className="p-8 text-rose-600 font-bold bg-slate-50 min-h-screen">Semester not found</div>;
+  }
 
-  if (!serializedSemester) return <div className="p-6">Semester not found</div>;
+  const formattedCourses = semester.courses.map((course) => ({
+    id: String(course.id),
+    title: course.title,
+    code: course.code,
+    room: course.room,
+    allowed_radius: course.allowedRadius,
+    latitude: Number(course.latitude),
+    longitude: Number(course.longitude),
+    day_of_week: course.dayOfWeek,
+    start_time: course.startTime,
+    end_time: course.endTime,
+    created_by: String(course.createdBy),
+    semester_id: String(course.semesterId),
+    instructor_id: course.instructorId ? String(course.instructorId) : "",
+    instructor_name: course.instructor?.name || "Unassigned",
+  }));
+
+  const formattedInstructors = instructors.map((inst) => ({
+    id: String(inst.id),
+    name: inst.name,
+    email: inst.email,
+    role: inst.role,
+  }));
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">{serializedSemester.name} - Classes</h1>
+    <div className="p-6 bg-slate-50 min-h-screen">
+      <div className="mb-6">
+        <h1 className="text-2xl font-extrabold text-slate-900">{semester.name} - Course Management</h1>
+        <p className="text-slate-500 text-sm mt-1">
+          Add, edit, or delete courses for this semester, assign instructors, set geofences, and schedule times.
+        </p>
+      </div>
+
       <ClassesManager
-        semesterId={serializedSemester.id}
-        initialData={serializedSemester.courses}
+        semesterId={String(semester.id)}
+        initialData={formattedCourses}
+        instructors={formattedInstructors}
       />
     </div>
   );

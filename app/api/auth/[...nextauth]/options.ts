@@ -3,13 +3,13 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import bcrypt from "bcryptjs";
 import { prisma } from "@/libs/prisma";
 
-// Extend session with user role
-interface ExtendedSession extends NextAuthSession {
+export interface ExtendedSession extends NextAuthSession {
   user: {
     id: string;
     name?: string | null;
     email: string | null;
     role?: string | null;
+    gender?: string | null;
   };
 }
 
@@ -21,33 +21,42 @@ export const authOptions: NextAuthOptions = {
         email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      
       async authorize(credentials) {
-        if (!credentials) throw new Error("No credentials provided");
-        const user = await prisma.users.findUnique({ where: { email: credentials.email } });
-        if (!user) throw new Error("User not found");
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Missing email or password");
+        }
+
+        const user = await prisma.user.findUnique({
+          where: { email: credentials.email.trim().toLowerCase() },
+        });
+
+        if (!user) {
+          throw new Error("Invalid email or password");
+        }
 
         const isValidPassword = await bcrypt.compare(
           credentials.password,
-          user.password_hash
+          user.passwordHash
         );
 
-        if (!isValidPassword) throw new Error("Invalid credentials");
+        if (!isValidPassword) {
+          throw new Error("Invalid email or password");
+        }
 
         return {
           id: String(user.id),
-          email: user.email ,
+          email: user.email,
           name: user.name,
           role: user.role,
+          gender: user.gender,
         };
       },
     }),
   ],
 
   pages: {
-    signIn: "/auth/signin",
-    error: "/auth/error",
-    signOut: "/auth/signout",
+    signIn: "/login",
+    error: "/login",
   },
 
   session: {
@@ -56,17 +65,19 @@ export const authOptions: NextAuthOptions = {
 
   callbacks: {
     async jwt({ token, user }) {
-      // On initial sign in
       if (user) {
         token.id = user.id;
-        token.email = user.email;
-        
-        if (user.email) {
-          const dbUser = await prisma.users.findUnique({ where: { email: user.email } });
-
-          if (dbUser) {
-            token.role = dbUser.role || "student";
-          }
+        token.email = user.email || undefined;
+        token.role = user.role || undefined;
+        token.name = user.name || undefined;
+      } else if (token.email) {
+        const dbUser = await prisma.user.findUnique({
+          where: { email: token.email },
+        });
+        if (dbUser) {
+          token.id = String(dbUser.id);
+          token.role = dbUser.role;
+          token.name = dbUser.name || undefined;
         }
       }
 
@@ -81,6 +92,7 @@ export const authOptions: NextAuthOptions = {
           id: token.id as string,
           role: token.role as string,
           email: token.email as string,
+          name: token.name as string,
         },
       };
     },

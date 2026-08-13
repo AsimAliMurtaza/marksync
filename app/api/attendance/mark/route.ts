@@ -1,140 +1,162 @@
 import { NextRequest, NextResponse } from "next/server";
-import dbConnect from "@/libs/mongodb";
-import Attendance from "@/models/Attendance";
-import Class from "@/models/Class";
-import User from "@/models/User";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/app/api/auth/[...nextauth]/options";
-import { isWithinRadius } from "@/libs/locationUtils";
+import { prisma } from "@/libs/prisma";
+import { isWithinRadius, calculateDistance } from "@/libs/locationUtils";
+import { AttendanceStatus } from "@prisma/client";
+
+export const dynamic = "force-dynamic";
 
 export async function POST(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id) {
       return NextResponse.json(
         { success: false, error: "Unauthorized" },
-        { status: 401 }
+        { status: 401 },
       );
     }
 
     const body = await req.json();
-    const { class: classId, userLat, userLon, deviceInfo } = body;
+    const {
+      class: rawClassId,
+      classId: altClassId,
+      userLat,
+      userLon,
+      deviceInfo,
+    } = body;
+    const targetClassId = Number(altClassId || rawClassId);
 
-    if (!classId || !userLat || !userLon || !deviceInfo) {
+    if (!targetClassId || userLat === undefined || userLon === undefined) {
       return NextResponse.json(
-        { success: false, error: "Missing required fields" },
-        { status: 400 }
+        {
+          success: false,
+          error: "Missing required fields (class, userLat, userLon)",
+        },
+        { status: 400 },
       );
     }
 
-    await dbConnect();
+    const userId = Number(session.user.id);
 
-    // Fetch user and class
-    const user = await User.findOne({ email: session.user?.email });
-    if (!user) {
-      return NextResponse.json(
-        { success: false, error: "User not found" },
-        { status: 404 }
-      );
-    }
+    const course = await prisma.course.findUnique({
+      where: { id: targetClassId },
+    });
 
-    const classData = await Class.findById(classId);
-    if (!classData) {
+    if (!course) {
       return NextResponse.json(
         { success: false, error: "Class not found" },
-        { status: 404 }
+        { status: 404 },
       );
     }
 
-    // ✅ 1. Check if current day matches class day
+    const isEnrolled = await prisma.enrollment.findUnique({
+      where: {
+        studentId_courseId: {
+          studentId: userId,
+          courseId: targetClassId,
+        },
+      },
+    });
+
+    if (!isEnrolled) {
+      return NextResponse.json(
+        { success: false, error: "You are not enrolled in this class" },
+        { status: 403 },
+      );
+    }
+
     const today = new Date();
-    const currentDay = today.toLocaleString("en-US", { weekday: "long" }); // e.g. "Monday"
-    if (classData.schedule.dayOfWeek !== currentDay) {
-      return NextResponse.json({
-        success: false,
-        error: `Attendance can only be marked on ${classData.schedule.dayOfWeek} during class hours.`,
-      });
-    }
-
-    // ✅ 2. Parse start and end times
-    const [startHour, startMinute] = classData.schedule.startTime
-      .split(":")
-      .map(Number);
-    const [endHour, endMinute] = classData.schedule.endTime
-      .split(":")
-      .map(Number);
-
-    const classStart = new Date(today);
-    classStart.setHours(startHour, startMinute, 0, 0);
-
-    const classEnd = new Date(today);
-    classEnd.setHours(endHour, endMinute, 0, 0);
-
-    const now = new Date();
-
-    // ✅ 3. Restrict marking outside of class time
-    if (now < classStart || now > classEnd) {
-      return NextResponse.json({
-        success: false,
-        error: "Attendance can only be marked during class hours.",
-      });
-    }
-
-    // ✅ 4. Check if user is within allowed location radius
+    const currentDayName = today.toLocaleString("en-US", { weekday: "long" });
     if (
-      classData.location &&
-      !isWithinRadius(
-        userLat,
-        userLon,
-        classData.location.latitude,
-        classData.location.longitude,
-        classData.allowedRadius || 30
-      )
+      course.dayOfWeek &&
+      course.dayOfWeek.toLowerCase() !== currentDayName.toLowerCase()
     ) {
       return NextResponse.json({
         success: false,
-        error: "You are not within the allowed class location radius.",
+        error: `Attendance for this class is scheduled on ${course.dayOfWeek}. Today is ${currentDayName}.`,
       });
     }
 
-    // ✅ 5. Check if already marked today
-    const startOfDay = new Date(today);
-    startOfDay.setHours(0, 0, 0, 0);
-    const endOfDay = new Date(today);
-    endOfDay.setHours(23, 59, 59, 999);
+    if (course.startTime && course.endTime) {
+      const [startHour, startMin] = course.startTime.split(":").map(Number);
+      const [endHour, endMin] = course.endTime.split(":").map(Number);
 
-    const alreadyMarked = await Attendance.findOne({
-      class: classId,
-      student: user._id,
-      createdAt: { $gte: startOfDay, $lte: endOfDay },
+      const classStart = new Date(today);
+      classStart.setHours(startHour, startMin, 0, 0);
+
+      const classEnd = new Date(today);
+      classEnd.setHours(endHour, endMin, 0, 0);
+
+      const now = new Date();
+
+      if (now < classStart || now > classEnd) {
+        return NextResponse.json({
+          success: false,
+          error: `Attendance can only be marked between ${course.startTime} and ${course.endTime}.`,
+        });
+      }
+    }
+
+    const courseLat = Number(course.latitude);
+    const courseLon = Number(course.longitude);
+    const radius = course.allowedRadius || 30;
+
+    const distanceMeters = Math.round(
+      calculateDistance(userLat, userLon, courseLat, courseLon),
+    );
+
+    if (!isWithinRadius(userLat, userLon, courseLat, courseLon, radius)) {
+      return NextResponse.json({
+        success: false,
+        error: `You are ${distanceMeters}m away from the class location. Allowed radius is ${radius}m.`,
+      });
+    }
+
+    const startOfToday = new Date(today);
+    startOfToday.setHours(0, 0, 0, 0);
+
+    const existingAttendance = await prisma.attendance.findFirst({
+      where: {
+        studentId: userId,
+        courseId: targetClassId,
+        date: startOfToday,
+      },
     });
 
-    if (alreadyMarked) {
+    if (existingAttendance) {
       return NextResponse.json({
         success: false,
         error: "You have already marked attendance for this class today.",
       });
     }
 
-    // ✅ 6. Save attendance record
-    const attendance = await Attendance.create({
-      student: user._id,
-      class: classId,
-      location: { latitude: userLat, longitude: userLon },
-      deviceInfo,
-      status: "present",
+    const attendanceRecord = await prisma.attendance.create({
+      data: {
+        studentId: userId,
+        courseId: targetClassId,
+        date: startOfToday,
+        timestamp: new Date(),
+        status: AttendanceStatus.PRESENT,
+        latitude: userLat,
+        longitude: userLon,
+        deviceInfo: deviceInfo || null,
+      },
     });
 
     return NextResponse.json({
       success: true,
       message: "Attendance marked successfully!",
-      data: attendance,
+      data: attendanceRecord,
     });
   } catch (error) {
     console.error("Error marking attendance:", error);
     return NextResponse.json(
-      { success: false, error: (error as Error).message },
-      { status: 500 }
+      {
+        success: false,
+        error: (error as Error).message || "Failed to mark attendance",
+      },
+      { status: 500 },
     );
   }
 }

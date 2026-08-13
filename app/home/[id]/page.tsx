@@ -1,6 +1,5 @@
 "use client";
 
-import * as React from "react";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
@@ -15,59 +14,55 @@ import {
   Alert,
   Divider,
   Fade,
+  Container,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import CheckCircleIcon from "@mui/icons-material/CheckCircle";
-import LocationOnIcon from "@mui/icons-material/LocationOn";
-import ScheduleIcon from "@mui/icons-material/Schedule";
-import HourglassEmptyIcon from "@mui/icons-material/HourglassEmpty";
-import CancelIcon from "@mui/icons-material/Cancel";
-import {ClassData, ApiResponse, SnackbarState, AttendanceStatusResponse} from "@/types/types";
+import CheckCircleOutlinedIcon from "@mui/icons-material/CheckCircleOutlined";
+import LocationOnOutlinedIcon from "@mui/icons-material/LocationOnOutlined";
+import AccessTimeOutlinedIcon from "@mui/icons-material/AccessTimeOutlined";
+import HourglassEmptyOutlinedIcon from "@mui/icons-material/HourglassEmptyOutlined";
+import CancelOutlinedIcon from "@mui/icons-material/CancelOutlined";
+import MyLocationOutlinedIcon from "@mui/icons-material/MyLocationOutlined";
 
-// Time formatting
-const formatTime = (time: string): string => {
-  if (!time) return "TBA";
-  const [hours, minutes] = time.split(":");
-  const hour = parseInt(hours, 10);
-  const ampm = hour >= 12 ? "PM" : "AM";
-  const formattedHour = hour % 12 || 12;
-  return `${formattedHour}:${minutes || "00"} ${ampm}`;
-};
+interface CourseDetail {
+  _id: string;
+  id: number;
+  name: string;
+  code: string;
+  allowedRadius: number;
+  schedule: {
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    room: string;
+  };
+  location: {
+    latitude: number;
+    longitude: number;
+  };
+}
 
 function getDeviceInfo(): string {
-  const info = [
+  if (typeof window === "undefined") return "";
+  return [
     navigator.userAgent,
     navigator.language,
     screen.width,
     screen.height,
     navigator.platform,
   ].join("|");
-  return info;
 }
 
-const formatSchedule = (schedule: ClassData["schedule"]): string => {
-  if (!schedule?.dayOfWeek) return "Schedule not available";
-  const dayAbbreviation = schedule.dayOfWeek.substring(0, 3);
-  const startTime = formatTime(schedule.startTime);
-  const endTime = formatTime(schedule.endTime);
-  return `${dayAbbreviation} ${startTime} - ${endTime}`;
-};
-
-const fetchClassDetails = async (id: string): Promise<ClassData> => {
-  const response = await fetch(`/api/classes/${id}`);
-  if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
-  const result: ApiResponse = await response.json();
-  if (!result.success || !result.data)
-    throw new Error(result.error ?? "Unknown error");
-  return result.data as ClassData;
-};
-
 export default function ClassDetailPage(): JSX.Element {
-  const [classData, setClassData] = useState<ClassData | null>(null);
+  const [classData, setClassData] = useState<CourseDetail | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
   const [markingAttendance, setMarkingAttendance] = useState<boolean>(false);
   const [isPresent, setIsPresent] = useState<boolean | null>(null);
-  const [snackbar, setSnackbar] = useState<SnackbarState>({
+  const [snackbar, setSnackbar] = useState<{
+    open: boolean;
+    message: string;
+    severity: "success" | "error" | "warning" | "info";
+  }>({
     open: false,
     message: "",
     severity: "success",
@@ -80,8 +75,13 @@ export default function ClassDetailPage(): JSX.Element {
   useEffect(() => {
     const loadClassData = async (): Promise<void> => {
       try {
-        const data = await fetchClassDetails(classId);
-        setClassData(data);
+        const response = await fetch(`/api/classes/${classId}`);
+        const result = await response.json();
+        if (result.success && result.data) {
+          setClassData(result.data as CourseDetail);
+        } else {
+          throw new Error(result.error || "Failed to fetch class details");
+        }
       } catch (error) {
         console.error(error);
         setSnackbar({
@@ -99,28 +99,16 @@ export default function ClassDetailPage(): JSX.Element {
   useEffect(() => {
     const checkAttendanceStatus = async (): Promise<void> => {
       try {
-        setIsPresent(null);
-        const response = await fetch(
-          `/api/attendance/status?classId=${classId}`
-        );
-        const result: AttendanceStatusResponse = await response.json();
+        const response = await fetch(`/api/attendance/status?classId=${classId}`);
+        const result = await response.json();
         setIsPresent(result.success ? result.data?.isPresent ?? false : false);
       } catch (error) {
         console.error(error);
         setIsPresent(false);
-        setSnackbar({
-          open: true,
-          message: "Failed to check attendance status.",
-          severity: "error",
-        });
       }
     };
     if (classId) void checkAttendanceStatus();
   }, [classId]);
-
-  const handleBackToDashboard = (): void => {
-    router.push("/home");
-  };
 
   const handleMarkPresent = async (): Promise<void> => {
     if (!classData) return;
@@ -145,15 +133,14 @@ export default function ClassDetailPage(): JSX.Element {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
-              class: classData._id,
+              class: classData.id,
               userLat: latitude,
               userLon: longitude,
               deviceInfo: getDeviceInfo(),
             }),
           });
 
-          const result: { success: boolean; message?: string; error?: string } =
-            await response.json();
+          const result = await response.json();
 
           if (result.success) {
             setSnackbar({
@@ -184,7 +171,7 @@ export default function ClassDetailPage(): JSX.Element {
         console.error(error);
         setSnackbar({
           open: true,
-          message: "Unable to get location. Check permissions.",
+          message: "Unable to get location. Please enable location permissions.",
           severity: "error",
         });
         setMarkingAttendance(false);
@@ -193,196 +180,158 @@ export default function ClassDetailPage(): JSX.Element {
     );
   };
 
-  const handleCloseSnackbar = (
-    _event?: React.SyntheticEvent | Event,
-    reason?: string
-  ): void => {
-    if (reason === "clickaway") return;
-    setSnackbar((prev) => ({ ...prev, open: false }));
-  };
-
-  const getStatusChip = (status?: ClassData["status"]): JSX.Element | null => {
-    if (!status) return null;
-    let color: "success" | "error" | "warning" | "default" = "default";
-    switch (status) {
-      case "On Time":
-        color = "success";
-        break;
-      case "Cancelled":
-        color = "error";
-        break;
-      case "Rescheduled":
-        color = "warning";
-        break;
-    }
-    return <Chip label={status} color={color} sx={{ mt: 1 }} />;
-  };
-
   if (loading)
     return (
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          minHeight: "70vh",
-        }}
-      >
-        <CircularProgress />
+      <Box display="flex" justifyContent="center" alignItems="center" minHeight="70vh" bgcolor="#F8FAFC">
+        <CircularProgress color="primary" />
       </Box>
     );
 
   if (!classData)
     return (
-      <Box sx={{ textAlign: "center", mt: 5 }}>
+      <Box textAlign="center" py={10} bgcolor="#F8FAFC" minHeight="100vh">
         <Typography variant="h5" color="error">
-          Class not found
+          Course not found
         </Typography>
-        <Button
-          sx={{ mt: 2 }}
-          variant="outlined"
-          onClick={handleBackToDashboard}
-        >
-          Back
+        <Button sx={{ mt: 2 }} variant="outlined" onClick={() => router.push("/home")}>
+          Back to Dashboard
         </Button>
       </Box>
     );
 
   return (
-  <Box
-    sx={{
-      flexGrow: 1,
-      px: { xs: 2, sm: 4, md: 8 },
-      py: { xs: 3, md: 5 },
-      bgcolor: "#f5f7fa",
-      minHeight: "100vh",
-    }}
-  >
-    <Paper
-      elevation={1}
-      sx={{
-        p: { xs: 3, sm: 4, md: 6 },
-        borderRadius: 2,
-        maxWidth: "1200px",   // ✅ wide but not stupid-wide
-        mx: "auto",
-        bgcolor: "#ffffff",
-      }}
-    >
-      {/* Header */}
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          mb: 4,
-          gap: 2,
-        }}
-      >
-        <IconButton onClick={handleBackToDashboard}>
-          <ArrowBackIcon />
-        </IconButton>
-        <Box>
-          <Typography variant="h4" fontWeight={600}>
-            {classData.name}
-          </Typography>
-          <Typography variant="subtitle1" color="text.secondary">
-            {classData.code}
-          </Typography>
-        </Box>
-      </Box>
-
-      <Divider sx={{ mb: 4 }} />
-
-      {/* Info Section */}
-      <Box sx={{ display: "grid", gap: 2, mb: 4 }}>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-          <ScheduleIcon sx={{ color: "text.secondary" }} />
-          <Typography color="text.secondary">
-            {formatSchedule(classData.schedule)}
-          </Typography>
-        </Box>
-
-        {classData.location && (
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <LocationOnIcon sx={{ color: "text.secondary" }} />
-            <Typography color="text.secondary">
-              Mark Attendance within {classData.allowedRadius ?? 30}m | Room:{" "}
-              {classData.schedule.room || "TBA"}
-            </Typography>
-          </Box>
-        )}
-      </Box>
-
-      {/* Status Section */}
-      <Box sx={{ mb: 5 }}>
-        {getStatusChip(classData.status)}
-
-        <Fade in={isPresent !== null}>
-          <Box sx={{ mt: 2 }}>
-            {isPresent === null ? (
-              <Chip
-                icon={<HourglassEmptyIcon />}
-                label="Checking attendance..."
-                color="info"
-              />
-            ) : isPresent ? (
-              <Chip
-                icon={<CheckCircleIcon />}
-                label="Attendance Marked"
-                color="success"
-              />
-            ) : (
-              <Chip
-                icon={<CancelIcon />}
-                label="Not Marked Yet"
-                color="warning"
-              />
-            )}
-          </Box>
-        </Fade>
-      </Box>
-
-      <Divider sx={{ mb: 4 }} />
-
-      {/* Action Area */}
-      <Box sx={{ display: "flex", justifyContent: "center" }}>
-        <Button
-          variant="contained"
-          color={isPresent ? "success" : "primary"}
-          size="large"
-          onClick={handleMarkPresent}
-          disabled={markingAttendance || !!isPresent}
+    <Box sx={{ px: { xs: 2, sm: 4, md: 6 }, py: { xs: 3, md: 5 }, bgcolor: "#F8FAFC", minHeight: "100vh" }}>
+      <Container maxWidth="md" disableGutters>
+        <Paper
+          elevation={0}
           sx={{
-            px: 6,
-            py: 1.6,
-            fontSize: "1rem",
-            fontWeight: 600,
-            borderRadius: 2,
+            p: { xs: 3, sm: 4, md: 5 },
+            borderRadius: "20px",
+            bgcolor: "#FFFFFF",
+            border: "1px solid #E2E8F0",
+            boxShadow: "0 10px 25px -5px rgba(0, 0, 0, 0.04)",
           }}
         >
-          {isPresent
-            ? "Attendance Marked"
-            : markingAttendance
-            ? "Marking..."
-            : "Mark Present"}
-        </Button>
-      </Box>
-    </Paper>
+          {/* Header */}
+          <Box display="flex" alignItems="center" mb={3} gap={2}>
+            <IconButton onClick={() => router.push("/home")} sx={{ border: "1px solid #E2E8F0" }}>
+              <ArrowBackIcon fontSize="small" />
+            </IconButton>
+            <Box flexGrow={1}>
+              <Typography variant="h4" fontWeight={800} color="#0F172A">
+                {classData.name}
+              </Typography>
+              <Typography variant="subtitle2" color="text.secondary" fontWeight={600}>
+                Course Code: {classData.code}
+              </Typography>
+            </Box>
+          </Box>
 
-    {/* Snackbar */}
-    <Snackbar
-      open={snackbar.open}
-      autoHideDuration={5000}
-      onClose={handleCloseSnackbar}
-      anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
-    >
-      <Alert
-        onClose={handleCloseSnackbar}
-        severity={snackbar.severity}
-        sx={{ width: "100%" }}
+          <Divider sx={{ mb: 4 }} />
+
+          {/* Schedule & Location Info */}
+          <Box sx={{ display: "grid", gap: 2, mb: 4 }}>
+            <Box display="flex" alignItems="center" gap={1.5} sx={{ p: 2, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #F1F5F9" }}>
+              <AccessTimeOutlinedIcon sx={{ color: "#6366F1" }} />
+              <Typography variant="body1" fontWeight={600} color="#1E293B">
+                Schedule: {classData.schedule.dayOfWeek} ({classData.schedule.startTime} - {classData.schedule.endTime})
+              </Typography>
+            </Box>
+
+            <Box display="flex" alignItems="center" gap={1.5} sx={{ p: 2, borderRadius: "12px", bgcolor: "#F8FAFC", border: "1px solid #F1F5F9" }}>
+              <LocationOnOutlinedIcon sx={{ color: "#14B8A6" }} />
+              <Typography variant="body1" color="#1E293B">
+                Room: <strong>{classData.schedule.room || "TBA"}</strong> | Geofence Radius:{" "}
+                <strong>{classData.allowedRadius ?? 30} meters</strong>
+              </Typography>
+            </Box>
+          </Box>
+
+          {/* Status Chip */}
+          <Box mb={4} textAlign="center">
+            <Fade in={isPresent !== null}>
+              <Box>
+                {isPresent === null ? (
+                  <Chip
+                    icon={<HourglassEmptyOutlinedIcon />}
+                    label="Checking attendance status..."
+                    sx={{ bgcolor: "#EFF6FF", color: "#3B82F6", fontWeight: 700, py: 2, px: 2 }}
+                  />
+                ) : isPresent ? (
+                  <Chip
+                    icon={<CheckCircleOutlinedIcon style={{ color: "#059669" }} />}
+                    label="ATTENDANCE MARKED PRESENT"
+                    sx={{
+                      bgcolor: "#ECFDF5",
+                      color: "#059669",
+                      border: "1px solid #A7F3D0",
+                      py: 2.5,
+                      px: 3,
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                    }}
+                  />
+                ) : (
+                  <Chip
+                    icon={<CancelOutlinedIcon style={{ color: "#D97706" }} />}
+                    label="ATTENDANCE NOT MARKED YET"
+                    sx={{
+                      bgcolor: "#FFFBEB",
+                      color: "#D97706",
+                      border: "1px solid #FDE68A",
+                      py: 2.5,
+                      px: 3,
+                      fontSize: "0.95rem",
+                      fontWeight: 700,
+                    }}
+                  />
+                )}
+              </Box>
+            </Fade>
+          </Box>
+
+          <Divider sx={{ mb: 4 }} />
+
+          {/* Action Button */}
+          <Box display="flex" flexDirection="column" alignItems="center" gap={2}>
+            <Button
+              variant="contained"
+              size="large"
+              onClick={handleMarkPresent}
+              disabled={markingAttendance || !!isPresent}
+              startIcon={<MyLocationOutlinedIcon />}
+              sx={{
+                px: 5,
+                py: 1.5,
+                fontSize: "1rem",
+                borderRadius: "12px",
+                width: { xs: "100%", sm: "auto" },
+              }}
+            >
+              {isPresent
+                ? "Attendance Already Verified"
+                : markingAttendance
+                ? "Verifying GPS Location..."
+                : "Verify Location & Mark Present"}
+            </Button>
+            <Typography variant="caption" color="text.secondary" textAlign="center">
+              Ensure you are physically present inside room {classData.schedule.room} with location services enabled.
+            </Typography>
+          </Box>
+        </Paper>
+      </Container>
+
+      {/* Snackbar */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={5000}
+        onClose={() => setSnackbar((prev) => ({ ...prev, open: false }))}
+        anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
       >
-        {snackbar.message}
-      </Alert>
-    </Snackbar>
-  </Box>
-);
+        <Alert severity={snackbar.severity} sx={{ width: "100%", borderRadius: "10px" }}>
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
+  );
 }
